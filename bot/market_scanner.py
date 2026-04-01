@@ -126,18 +126,30 @@ class MarketScanner:
         Returns: list[MarketData] yang lolos filter Crypto + durasi.
         """
         try:
-            raw_markets = self.client.get_markets()  # returns list[dict]
+            resp = self.client.get_markets()
+            
+            # Perbaikan: Ambil list market dari key 'data'
+            # Jika resp bukan dict (jarang terjadi), asumsikan itu list langsung
+            raw_markets = resp.get("data", []) if isinstance(resp, dict) else resp
+            
         except Exception as exc:
             logger.error("[Scanner] Gagal mengambil daftar market: %s", exc)
             return []
 
         results: list[MarketData] = []
+        
+        # Sekarang raw benar-benar sebuah dictionary market, bukan string key
         for raw in raw_markets:
+            # Tambahkan pengecekan tipe data untuk keamanan ekstra
+            if not isinstance(raw, dict):
+                continue
+                
             if not raw.get("active") or raw.get("closed"):
                 continue
+                
             market = MarketData(raw)
             if self._is_crypto_market(market) and self._is_target_duration(market):
                 results.append(market)
 
-        logger.info("[Scanner] Ditemukan %d market Crypto aktif.", len(results))
+        logger.info("[Scanner] Selesai scan. Lolos filter: %d market.", len(results))
         return results
